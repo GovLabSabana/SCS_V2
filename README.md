@@ -52,17 +52,49 @@ La IA recibe el proyecto y los 100 candidatos. Realiza los siguientes pasos:
 
 ---
 
-## 6. Escala de calificación (OBLIGATORIA)
+## 6. Escala de calificación multicriterio (OBLIGATORIA)
+
+Cada proyecto es evaluado en **tres criterios independientes**, cada uno en escala de **0 a 5**.
+La calificación final del proyecto es el **promedio** de los tres.
+
+### Criterio 1: Especificidad
+Qué tan directamente el programa del plan de desarrollo apunta a lo que busca el proyecto.
 
 | Valor | Significado |
-|------|------------|
-| 0 | No existe ningún producto relacionado |
-| 1 | Producto crea condiciones generales, pero no cumple objetivo ni requerimientos |
-| 2 | Producto cumple parcialmente el objetivo o algunos requerimientos |
-| 3 | Producto cumple casi totalmente el objetivo y la mayoría de requerimientos |
+|------|--------------|
+| 0 | Sin relación alguna con el objetivo o requerimientos del proyecto |
+| 1 | Relación muy tangencial; el producto solo crea condiciones generales muy lejanas |
+| 2 | El producto es genérico pero guarda cierta relación con el sector del proyecto |
+| 3 | El producto cumple parcialmente el objetivo O algunos requerimientos del proyecto |
+| 4 | El producto cumple casi totalmente el objetivo y la mayoría de requerimientos |
+| 5 | El producto es prácticamente idéntico en objetivo y cumple todos los requerimientos del proyecto |
+
+### Criterio 2: Visión regional
+Qué tanto el programa del plan de desarrollo contempla cooperación o impacto en otros municipios de Sabana Centro.
+
+| Valor | Significado |
+|------|--------------|
+| 0 | El producto es estrictamente local, sin mención de articulación regional |
+| 1 | El producto es local pero podría generar externalidades menores en otros municipios |
+| 2 | El producto menciona o implica coordinación con algún actor regional (gobernación, etc.) |
+| 3 | El producto involucra activamente a otros municipios o a la región Sabana Centro |
+| 4 | El producto está diseñado para tener alcance regional claro y explícito |
+| 5 | El producto es un mecanismo de gobernanza o acción colectiva intermunicipal por diseño |
+
+### Criterio 3: Impacto
+Cuánto puede contribuir el producto a la sostenibilidad ambiental, social o económica de Sabana Centro.
+
+| Valor | Significado |
+|------|--------------|
+| 0 | El producto no tiene efecto relevante en la sostenibilidad de la región |
+| 1 | El producto tiene un impacto muy marginal o solo simbólico |
+| 2 | El producto contribuye de forma modesta a una dimensión de la sostenibilidad |
+| 3 | El producto tiene un impacto moderado y medible en la sostenibilidad regional |
+| 4 | El producto tiene un impacto significativo y aborda varias dimensiones de la sostenibilidad |
+| 5 | El producto es transformador para la sostenibilidad regional a largo plazo |
 
 ⚠️ Regla dura:  
-Sin producto MGA → **no puede haber calificación mayor a 0**.
+Sin producto MGA → **los tres criterios deben ser 0, y el promedio resultante será 0**.
 
 ---
 
@@ -80,8 +112,11 @@ El sistema genera un archivo Excel en `salidas/resultados_matching.xlsx` con las
 | Codigos_MGA | Lista de códigos MGA seleccionados |
 | Indicador de Producto(MGA) | Texto literal del indicador asociado al código MGA |
 | Productos | Texto literal de “Personalización de Indicador de Producto” |
-| Calificacion | Entero de 0 a 3 |
-| Justificacion | 1–2 frases, técnicas y concisas |
+| Especificidad | Puntaje 0-5: qué tan directa es la relación con el proyecto |
+| Vision_Regional | Puntaje 0-5: alcance intermunicipal o regional del programa |
+| Impacto | Puntaje 0-5: contribución a la sostenibilidad de la región |
+| Calificacion_Promedio | Promedio decimal de los tres criterios anteriores |
+| Justificacion | 1–2 frases, técnicas y concisas, explicando los tres puntajes |
 
 🚫 No resumir ni reinterpretar nombres de productos.  
 ✅ Copiar literal desde SisPT.

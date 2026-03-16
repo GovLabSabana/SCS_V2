@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sabana Centro Sostenible · Dashboard de Resultados</title>
+  <meta name="description" content="Dashboard interactivo de resultados del matching de proyectos estratégicos SCS con planes indicativos municipales."/>
+  <!-- Leaf favicon (SVG inline — stays as the tab icon) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-mark"></div>
+        <div>
+          <div class="logo-title">Sabana Centro Sostenible</div>
+          <div class="logo-sub">Dashboard de Resultados · Matching SisPT</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="header-badge" id="last-updated">Cargando datos…</div>
+        <img src="/static/Govlab.png" alt="GovLab" class="header-logo-img"/>
+      </div>
+    </div>
+  </header>
+
+  <!-- FILTERS BAR -->
+  <div class="filters-bar">
+    <div class="filter-group">
+      <label class="filter-label">Dimensión</label>
+      <select id="filter-dimension" class="filter-select">
+        <option value="">Todas las dimensiones</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label class="filter-label">Subcalificación</label>
+      <select id="filter-subscore" class="filter-select">
+        <option value="">Promedio</option>
+        <option value="Especificidad">Especificidad</option>
+        <option value="Vision_Regional">Visión Regional</option>
+        <option value="Impacto">Impacto</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label class="filter-label">Municipio (clic en mapa o aquí)</label>
+      <select id="filter-municipio" class="filter-select">
+        <option value="">Todos los municipios</option>
+      </select>
+    </div>
+    <button class="btn-reset" id="btn-reset">Limpiar filtros</button>
+  </div>
+
+  <!-- MAIN MAP + CHARTS -->
+  <main class="main-grid">
+
+    <section class="card map-card">
+      <div class="card-header">
+        <span class="card-title">Mapa de Municipios</span>
+        <span class="card-hint">Clic para filtrar</span>
+      </div>
+      <div id="map"></div>
+      <div class="map-legend" id="map-legend">
+        <div class="legend-title">Calificación promedio</div>
+        <div class="legend-items">
+          <span class="legend-dot" style="background:#c8f0c8"></span><span>0–1</span>
+          <span class="legend-dot" style="background:#70d16e"></span><span>1–2</span>
+          <span class="legend-dot" style="background:#2ecc71"></span><span>2–3</span>
+          <span class="legend-dot" style="background:#0e8a4a"></span><span>3–4</span>
+          <span class="legend-dot" style="background:#054d28"></span><span>4–5</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="charts-column">
+      <section class="card chart-card">
+        <div class="card-header">
+          <span class="card-title">Calificación promedio por municipio</span>
+        </div>
+        <div class="chart-wrap"><canvas id="chart-municipio"></canvas></div>
+      </section>
+
+      <section class="card chart-card">
+        <div class="card-header">
+          <span class="card-title">Subcalificaciones por municipio</span>
+        </div>
+        <div class="chart-wrap"><canvas id="chart-subcalificaciones"></canvas></div>
+      </section>
+
+      <section class="card chart-card">
+        <div class="card-header">
+          <span class="card-title">Calificación promedio por dimensión</span>
+        </div>
+        <div class="chart-wrap"><canvas id="chart-dimension"></canvas></div>
+      </section>
+    </div>
+
+  </main>
+
+  <!-- RADAR -->
+  <section class="radar-section">
+    <div class="radar-section-header" style="display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <h2 class="radar-section-title">Perfil comparado por dimensión</h2>
+        <span class="card-hint">Los ejes son las dimensiones; evalúa el desempeño del municipio</span>
+      </div>
+      <button id="radar-toggle" style="background:#2ecc71; color:#0d1117; border:none; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600; transition:opacity 0.2s">Separar Municipios</button>
+    </div>
+    <div class="radar-grid" id="radar-grid"></div>
+  </section>
+
+  <!-- TOP 10 TABLE -->
+  <section class="card table-card">
+    <div class="card-header">
+      <span class="card-title">Top 10 proyectos con mayor calificación</span>
+      <span class="card-hint" id="table-scope-label">Todos los municipios · Todas las dimensiones</span>
+    </div>
+    <div class="table-wrap">
+      <table id="top-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Municipio</th>
+            <th>Dimensión</th>
+            <th>ID</th>
+            <th>Proyecto</th>
+            <th>Código MGA</th>
+            <th>Producto SisPT</th>
+            <th>2024</th>
+            <th>2025</th>
+            <th>2026</th>
+            <th>2027</th>
+            <th>Espec.</th>
+            <th>Vis. Reg.</th>
+            <th>Impacto</th>
+            <th>Promedio</th>
+            <th>Justificación</th>
+          </tr>
+        </thead>
+        <tbody id="top-table-body">
+          <tr><td colspan="16" class="empty-row">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <div class="footer-logos">
+        <img src="/static/Govlab.png" alt="GovLab – Universidad de la Sabana" class="footer-logo"/>
+        <img src="/static/Sabana.png" alt="Universidad de la Sabana" class="footer-logo"/>
+      </div>
+      <div class="footer-text">
+        <p>Desarrollado por <strong>Juan Diego Sotelo Aguilar</strong></p>
+        <p>Laboratorio de Gobierno (GovLab) · Universidad de la Sabana</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -52,7 +52,7 @@ OUTPUT_XLSX = OUTPUT_DIR / "resultados_matching.xlsx"
 ONLY_DANE: Optional[str] = None      # Procesa todos los municipios
 MAX_CANDIDATES_PER_PROJECT = 60      # Ajustado a 60 por solicitud del usuario
 MODEL_NAME = "gpt-4o-mini"          # Cambia si quieres (p.ej. gpt-4.1, gpt-4o-mini). Debe soportar JSON.
-TEMPERATURE = 0.2                   # Aumentado ligeramente para mayor flexibilidad en la relación
+TEMPERATURE = 0.1                   # Ligera variabilidad para calificaciones más naturales y diferenciadas
 
 # Hojas / columnas SisPT
 SISPT_SHEET_CANDIDATES = [
@@ -248,19 +248,55 @@ def llm_match_project(
         cand_lines.append({"codigo_mga": code, "producto": text})
 
     prompt = {
-        "tarea": "Seleccionar productos del plan indicativo SisPT que correspondan al proyecto estratégico.",
-        "escala_calificacion": {
-            "0": "No existe ningún producto relacionado. El proyecto no cumple ni objetivos ni requerimientos, ni el nombre es similar.",
-            "1": "El producto crea condiciones o facilita que se cumpla el objetivo, pero NO tiene el mismo objetivo y NO cumple con los requerimientos.",
-            "2": "El producto cumple PARCIALMENTE con el objetivo O cumple PARCIALMENTE con los requerimientos.",
-            "3": "El producto cumple con el objetivo Y con casi todos o todos los requerimientos."
+        "tarea": "Seleccionar productos del plan indicativo SisPT que correspondan al proyecto estratégico y evaluarlos en tres criterios independientes en escala de 0 a 5. Debes ser estricto y crítico. La mayoría de productos merecen puntajes bajos (0-2). Los puntajes altos (4-5) son excepcionales y deben estar plenamente justificados.",
+        "calibracion_obligatoria": [
+            "SÉ JUSTO PERO RIGUROSO: Si un producto tiene una relación real y argumentable con el proyecto, premia esa relación con un puntaje adecuado. No castigues por exceso de escepticismo.",
+            "DISTRIBUCIÓN ESPERADA: Los puntajes típicos deben estar entre 2 y 4. El 0 y el 1 son para productos sin relación o con relación muy lejana. El 5 es excepcional y debe estar plenamente justificado, pero el 4 es alcanzable con buena evidencia.",
+            "EVITA EL CLUSTERING: Está PROHIBIDO asignar el mismo puntaje a los tres criterios sin argumentación sólida. Cada criterio debe evaluarse de forma independiente; es normal y esperado que difieran entre sí.",
+            "SOBRE GENERALIDAD: Los productos genéricos que no abordan explícitamente el objetivo del proyecto no pueden superar 3 en especificidad. Si hay relación temática clara, no bajes de 2.",
+            "SOBRE VISIÓN LOCAL: Si el texto del producto no menciona explícitamente a otros municipios o a la región Sabana Centro, la visión regional NO puede superar 2. Si el producto tiene un impacto lógicamente regional (ej. cuencas hídricas, movilidad), puede llegar a 2."
+        ],
+        "criterios_de_calificacion": {
+            "especificidad": {
+                "descripcion": "Qué tan directamente el programa del plan de desarrollo apunta a lo que busca el proyecto estratégico.",
+                "escala": {
+                    "0": "Sin relación alguna. El producto pertenece a un sector completamente diferente al del proyecto.",
+                    "1": "El producto está en el mismo sector amplio, pero su objetivo es distinto y no aborda los requerimientos del proyecto.",
+                    "2": "El producto guarda relación temática con el proyecto; apoya condiciones necesarias pero no es el objetivo directo.",
+                    "3": "El producto aborda el mismo objetivo del proyecto O cumple varios de sus requerimientos técnicos de forma clara.",
+                    "4": "El producto aborda el mismo objetivo del proyecto Y cumple la mayoría de sus requerimientos técnicos. La relación es directa y argumentable.",
+                    "5": "RESERVADO: el texto del producto es prácticamente idéntico al objetivo del proyecto y satisface todos sus requerimientos. Extremadamente raro."
+                }
+            },
+            "vision_regional": {
+                "descripcion": "Qué tanto el programa del plan de desarrollo contempla cooperación o impacto en otros municipios de Sabana Centro más allá del propio municipio.",
+                "escala": {
+                    "0": "El producto es estrictamente local y su naturaleza no genera ningún efecto en municipios vecinos.",
+                    "1": "El producto es principalmente local, pero su naturaleza (ej. movilidad, cuencas) podría generar efectos secundarios menores en municipios vecinos.",
+                    "2": "El producto menciona coordinación con actores supramunicipales (gobernación, CAR, etc.) o tiene un alcance que lógicamente trasciende el municipio.",
+                    "3": "El texto del producto menciona explícitamente a otros municipios vecinos o a la región Sabana Centro como parte de su alcance.",
+                    "4": "El producto está diseñado con alcance regional explícito y nombra objetivos o metas intermunicipales concretas.",
+                    "5": "RESERVADO: el producto es un mecanismo de gobernanza o acción colectiva intermunicipal por diseño. Extremadamente raro."
+                }
+            },
+            "impacto": {
+                "descripcion": "Cuánto puede contribuir el producto a la sostenibilidad ambiental, social o económica de la región Sabana Centro a largo plazo.",
+                "escala": {
+                    "0": "El producto no tiene ninguna relación con la sostenibilidad regional.",
+                    "1": "El producto tiene un efecto marginal o muy acotado sobre la sostenibilidad.",
+                    "2": "El producto contribuye a UNA dimensión de la sostenibilidad (ambiental, social o económica) de forma modesta pero real.",
+                    "3": "El producto tiene un impacto claro y duradero sobre la sostenibilidad regional en una o más dimensiones.",
+                    "4": "El producto tiene un impacto significativo que aborda varias dimensiones de la sostenibilidad con beneficios concretos y de mediano o largo plazo.",
+                    "5": "RESERVADO: el producto es verdaderamente transformador para la sostenibilidad de Sabana Centro. Extremadamente raro."
+                }
+            }
         },
         "reglas": [
             "Usa SOLO los candidatos provistos (no inventes códigos).",
-            "Si no hay correspondencia que amerite al menos calificación 1, devuelve lista vacía y calificacion 0.",
+            "Si no hay correspondencia que amerite al menos especificidad=1, devuelve lista vacía y los tres criterios en 0.",
             "La columna Productos debe ser copia literal de 'Personalización de Indicador de Producto'.",
             "MÁXIMO 5 productos por proyecto. Selecciona solo los más relevantes.",
-            "Justificación: 1–2 frases, directa y técnica."
+            "Justificación: 1–2 frases directas y técnicas. Debe mencionar brevemente por qué cada criterio obtuvo su puntaje específico."
         ],
         "contexto": {
             "municipio": municipio,
@@ -272,8 +308,7 @@ def llm_match_project(
                 "objetivo": proyecto.objetivo,
                 "requerimientos": proyecto.requerimientos
             },
-            "candidatos": cand_lines,
-            "flexible_matching": True
+            "candidatos": cand_lines
         }
     }
 
@@ -282,20 +317,34 @@ def llm_match_project(
         "type": "object",
         "properties": {
             "pensamiento_interno": {
-                "type": "string", 
+                "type": "string",
                 "description": (
-                    "Análisis exhaustivo y razonado. Empieza comparando el 'Objetivo' del proyecto contra el 'Producto'. "
-                    "Luego, evalúa si los 'Requerimientos' técnicos se ven reflejados o habilitados por el producto. "
-                    "Determina si la relación es directa (misma meta), funcional (el producto es necesario para el proyecto) "
-                    "o nula. Explica por qué asignas la calificación específica basada estrictamente en la escala."
+                    "Análisis exhaustivo y razonado. Compara el 'Objetivo' del proyecto con el 'Producto'. "
+                    "Evalúa si los 'Requerimientos' técnicos se ven reflejados o habilitados. "
+                    "Luego razona independientemente cada uno de los tres criterios: Especificidad, Visión regional e Impacto, "
+                    "justificando el puntaje específico (0-5) que asignarás a cada uno."
                 )
             },
             "codigos_mga": {"type": "array", "maxItems": 5, "items": {"type": "string"}},
             "productos": {"type": "array", "maxItems": 5, "items": {"type": "string"}},
-            "calificacion": {"type": "integer", "enum": [0, 1, 2, 3], "description": "Sigue estrictamente la escala proporcionada."},
+            "especificidad": {
+                "type": "integer",
+                "enum": [0, 1, 2, 3, 4, 5],
+                "description": "Qué tan directamente el producto apunta al objetivo y requerimientos del proyecto (0-5)."
+            },
+            "vision_regional": {
+                "type": "integer",
+                "enum": [0, 1, 2, 3, 4, 5],
+                "description": "Qué tanto el producto contempla cooperación o impacto en otros municipios de Sabana Centro (0-5)."
+            },
+            "impacto": {
+                "type": "integer",
+                "enum": [0, 1, 2, 3, 4, 5],
+                "description": "Cuánto puede contribuir el producto a la sostenibilidad de la región en el largo plazo (0-5)."
+            },
             "justificacion": {"type": "string"}
         },
-        "required": ["pensamiento_interno", "codigos_mga", "productos", "calificacion", "justificacion"],
+        "required": ["pensamiento_interno", "codigos_mga", "productos", "especificidad", "vision_regional", "impacto", "justificacion"],
         "additionalProperties": False
     }
 
@@ -392,6 +441,13 @@ def process_municipio_file(
                 inds_final.append(safe_str(match_row.iloc[0][col_ind_actual]))
                 prods_final.append(safe_str(match_row.iloc[0][col_pers_actual]))
 
+        # Extraer los tres criterios individuales (0-5)
+        especificidad = int(result["especificidad"])
+        vision_regional = int(result["vision_regional"])
+        impacto = int(result["impacto"])
+        # Calcular el promedio con decimales
+        calificacion_promedio = round((especificidad + vision_regional + impacto) / 3, 2)
+
         rows.append({
             "Municipio": municipio,
             "Codigo_DANE": dane,
@@ -401,8 +457,11 @@ def process_municipio_file(
             "Codigos_MGA": ", ".join(codigos) if codigos else "NA",
             "Indicador de Producto(MGA)": "; ".join(inds_final) if inds_final else "NA",
             "Productos": "; ".join(prods_final) if prods_final else "NA",
-            "Calificacion": int(result["calificacion"]),
-            "Justificacion": normalize_spaces(result["justificacion"])
+            "Especificidad": especificidad,
+            "Vision_Regional": vision_regional,
+            "Impacto": impacto,
+            "Calificacion_Promedio": calificacion_promedio,
+            "Justificacion": normalize_spaces(result["justificacion"].replace("**", ""))
         })
 
     return pd.DataFrame(rows)

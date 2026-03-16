@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SisPT · {{ muni_name }} ({{ dane_code }})</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0d1117; --bg-card: #161b22; --border: #30363d;
+      --accent: #2ecc71; --text: #e6edf3; --text-muted: #8b949e;
+      --font: 'Inter', system-ui, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 13px; }
+
+    /* Top bar */
+    .topbar {
+      background: linear-gradient(135deg, #0d2e1a 0%, #0d1117 60%);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+      position: sticky; top: 0; z-index: 200;
+    }
+    .topbar a {
+      color: var(--accent); text-decoration: none; font-size: 13px;
+      padding: 6px 14px; border: 1px solid var(--border); border-radius: 8px;
+      transition: all .2s; flex-shrink: 0;
+    }
+    .topbar a:hover { border-color: var(--accent); }
+    .topbar h1 { font-size: 16px; font-weight: 600; }
+    .topbar .info { color: var(--text-muted); font-size: 12px; }
+    .search-box {
+      margin-left: auto;
+      background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+      padding: 6px 12px; color: var(--text); font-size: 12px; font-family: var(--font);
+      width: 220px; outline: none; transition: border-color .2s;
+    }
+    .search-box:focus { border-color: var(--accent); }
+
+    /* Notice */
+    .notice {
+      text-align: center; padding: 8px;
+      background: rgba(46,204,113,.08); color: var(--accent); font-size: 12px;
+      border-bottom: 1px solid rgba(46,204,113,.15);
+    }
+
+    /* Table container */
+    .table-container {
+      overflow: auto;
+      max-height: calc(100vh - 110px);
+      margin: 0;
+    }
+
+    table {
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 11.5px;
+      min-width: 100%;
+    }
+
+    th, td {
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--border);
+      border-right: 1px solid #1e2530;
+      vertical-align: top;
+      min-width: 120px;
+      max-width: 400px;
+      word-wrap: break-word;
+      white-space: normal;
+    }
+
+    /* Sticky header rows (row 0 and 1) */
+    thead th {
+      background: #1a2232;
+      font-weight: 600;
+      color: var(--text-muted);
+      position: sticky;
+      z-index: 20;
+    }
+    thead tr:nth-child(1) th { top: 0; }
+    thead tr:nth-child(2) th { top: 38px; }
+
+    /* Sticky first 2 columns */
+    th:nth-child(1), td:nth-child(1) {
+      position: sticky; left: 0; z-index: 10;
+      background: var(--bg-card);
+      min-width: 80px;
+    }
+    th:nth-child(2), td:nth-child(2) {
+      position: sticky; left: 80px; z-index: 10;
+      background: var(--bg-card);
+      border-right: 2px solid var(--accent);
+      min-width: 150px;
+    }
+    /* Headers at intersection get higher z-index */
+    thead th:nth-child(1), thead th:nth-child(2) {
+      z-index: 30;
+      background: #1a2232;
+    }
+
+    tbody tr:hover td { background: #1f2937; }
+
+    /* Highlighted row */
+    tr.hl td {
+      /* Use a solid color instead of rgba so scrolling text doesn't show through sticky columns */
+      background: #1a2e23 !important;
+      color: var(--text) !important;
+      font-weight: 500;
+    }
+    .mga-badge {
+      display: inline-block; background: var(--accent); color: #0d1117;
+      font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px;
+      margin-left: 4px;
+    }
+
+    /* Hidden rows from search */
+    tr.hidden-row { display: none; }
+
+    .stats {
+      position: fixed; bottom: 12px; right: 16px;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+      padding: 6px 14px; font-size: 11px; color: var(--text-muted); z-index: 200;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a href="/">← Dashboard</a>
+    <h1>{{ muni_name }}</h1>
+    <span class="info">DANE {{ dane_code }}</span>
+    <span class="info" style="font-size:11px">Plan indicativo – Productos</span>
+    {% if highlight %}
+      <span class="info">MGA: <strong style="color:var(--accent)">{{ highlight }}</strong></span>
+    {% endif %}
+    <input type="text" class="search-box" id="search" placeholder="Buscar en tabla…" autocomplete="off"/>
+  </div>
+
+  {% if highlight and highlighted_rows %}
+  <div class="notice">Fila resaltada: código MGA <strong>{{ highlight }}</strong></div>
+  {% endif %}
+
+  <div class="table-container" id="table-container">
+    <table id="sispt-table">
+      <thead>
+        {# Render first 2 rows as sticky headers #}
+        {% for row_idx in range(2) %}
+        <tr>
+          {% for col_idx in range(df.shape[1]) %}
+            <th>{{ df.iloc[row_idx, col_idx] if df.iloc[row_idx, col_idx] else '' }}</th>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </thead>
+      <tbody>
+        {% for row_idx in range(2, df.shape[0]) %}
+        <tr {% if row_idx in highlighted_rows %}class="hl" id="target-row"{% endif %} data-row="{{ row_idx }}">
+          {% for col_idx in range(df.shape[1]) %}
+            {% set cell = df.iloc[row_idx, col_idx] %}
+            <td {% if not cell or cell == 'nan' %}class="empty-cell"{% endif %}>
+              {% if price_start_idx is not none and col_idx >= price_start_idx and 'bpin' not in (df.iloc[1, col_idx] | string | lower) %}
+                {{ format_currency(cell) }}
+              {% else %}
+                {{ cell if cell and cell != 'nan' else '·' }}
+              {% endif %}
+              
+              {% if row_idx in highlighted_rows and col_idx == mga_col_idx %}
+                <span class="mga-badge">MGA</span>
+              {% endif %}
+            </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <script>
+    // Scroll to highlighted row
+    document.addEventListener('DOMContentLoaded', function() {
+      var target = document.getElementById('target-row');
+      if (target) {
+        var container = document.getElementById('table-container');
+        // Scroll the container so the target is visible
+        setTimeout(function() {
+          target.scrollIntoView({ block: 'center' });
+        }, 200);
+      }
+
+      // Stats
+      var totalRows = document.querySelectorAll('#sispt-table tbody tr').length;
+      document.getElementById('stats').textContent = totalRows + ' filas · ' + "{{ df.shape[1] }}" + ' columnas';
+
+      // Search filter
+      var searchBox = document.getElementById('search');
+      searchBox.addEventListener('input', function() {
+        var q = this.value.toLowerCase().trim();
+        var rows = document.querySelectorAll('#sispt-table tbody tr');
+        var visible = 0;
+        rows.forEach(function(tr) {
+          if (!q || tr.textContent.toLowerCase().includes(q)) {
+            tr.classList.remove('hidden-row');
+            visible++;
+          } else {
+            tr.classList.add('hidden-row');
+          }
+        });
+        document.getElementById('stats').textContent = visible + '/' + totalRows + ' filas · ' + "{{ df.shape[1] }}" + ' columnas';
+      });
+    });
+  </script>
+</body>
+</html>

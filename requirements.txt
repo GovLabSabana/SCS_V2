@@ -3,3 +3,6 @@ openpyxl
 openai
 python-dotenv
 rapidfuzz
+flask
+pyproj
+gunicorn
